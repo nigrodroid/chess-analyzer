@@ -1,4 +1,184 @@
-<!DOCTYPE html>
+let board = Chessboard('board', {
+        pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
+        position: 'start'
+    });
+
+    const game = new Chess();
+    let stockfishWorker = null;
+    let isAnalyzing = false;
+
+    async function loadStockfish() {
+        try {
+            document.getElementById('results').innerHTML = "<div style='padding:15px; text-align:center;'>Setting up engine...</div>";
+            const response = await fetch('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
+            const code = await response.text();
+            const blob = new Blob([code], { type: 'application/javascript' });
+            stockfishWorker = new Worker(URL.createObjectURL(blob));
+            document.getElementById('results').innerHTML = "<div style='padding:15px; text-align:center; color:#81b64c;'>Ready for analysis.</div>";
+        } catch (error) {
+            document.getElementById('results').innerHTML = "<div style='padding:15px; text-align:center; color:#ff5555;'>Engine error.</div>";
+        }
+    }
+
+    loadStockfish();
+
+    // Mapping classifications to symbolic icons
+    const classSymbols = {
+        "Best": { text: "✓", color: "#81b64c" },
+        "Good": { text: "✓", color: "#4b643a" },
+        "Inaccuracy": { text: "?!", color: "#f0c15c" },
+        "Mistake": { text: "?", color: "#e67e22" },
+        "Blunder": { text: "??", color: "#b33925" }
+    };
+
+    function getClassification(current, previous, isWhiteTurn) {
+        if (current.startsWith('M') || previous.startsWith('M')) {
+            return { label: "Best", class: "bg-best" };
+        }
+        
+        let curNum = parseFloat(current);
+        let prevNum = parseFloat(previous);
+        if (isNaN(curNum) || isNaN(prevNum)) return { label: "Best", class: "bg-best" };
+        
+        let loss = isWhiteTurn ? (prevNum - curNum) : (curNum - prevNum);
+        
+        if (loss <= 0.15) return { label: "Best", class: "bg-best" };
+        if (loss <= 0.45) return { label: "Good", class: "bg-good" };
+        if (loss <= 0.9) return { label: "Inaccuracy", class: "bg-inaccuracy" };
+        if (loss <= 1.8) return { label: "Mistake", class: "bg-mistake" };
+        return { label: "Blunder", class: "bg-blunder" };
+    }
+
+    // Function to dynamically attach a visual indicator symbol to a square
+    function addBadgeToSquare(square, label) {
+        // Clear previous custom icons
+        $('.board-b72b1 .square-' + square).find('.board-custom-badge').remove();
+        
+        const symbolData = classSymbols[label];
+        if (!symbolData) return;
+
+        const badgeHtml = `
+            <div class="board-custom-badge" style="
+                position: absolute;
+                top: -4px;
+                right: -4px;
+                background-color: ${symbolData.color};
+                color: ${label === 'Inaccuracy' ? '#000' : '#fff'};
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: sans-serif;
+                font-size: 11px;
+                font-weight: bold;
+                z-index: 10;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+                border: 1.5px solid #161512;
+            ">${symbolData.text}</div>
+        `;
+        $('.board-b72b1 .square-' + square).css('position', 'relative').append(badgeHtml);
+    }
+
+    document.getElementById('analyzeBtn').addEventListener('click', async () => {
+        const pgn = document.getElementById('pgnInput').value.trim();
+        const resultsDiv = document.getElementById('results');
+        
+        if (!pgn) { alert("Paste a PGN first!"); return; }
+        if (!stockfishWorker) { alert("Engine is loading..."); return; }
+        if (isAnalyzing) return;
+        
+        game.reset();
+        if (!game.load_pgn(pgn)) {
+            resultsDiv.innerHTML = "<div style='padding:15px; color:#ff5555;'>Invalid PGN format.</div>";
+            return;
+        }
+
+        const moves = game.history({ verbose: true });
+        if (moves.length === 0) return;
+
+        isAnalyzing = true;
+        document.getElementById('analyzeBtn').disabled = true;
+        
+        const progressWrapper = document.getElementById('progressWrapper');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        
+        progressWrapper.style.display = 'block';
+        resultsDiv.innerHTML = "";
+        
+        let testGame = new Chess();
+        let lastEval = "0.00";
+        
+        for (let i = 0; i < moves.length; i++) {
+            let percent = Math.round(((i + 1) / moves.length) * 100);
+            progressBar.style.width = percent + '%';
+            progressText.innerText = `Analyzing (${percent}%)`;
+            
+            testGame.move(moves[i]);
+            board.position(testGame.fen());
+            
+            const evalValue = await getEval(testGame.fen(), 10);
+            const whiteToMove = i % 2 === 0;
+            
+            const classification = getClassification(evalValue, lastEval, whiteToMove);
+            lastEval = evalValue;
+            
+            // Add the floating badge tag to the destination square of the move
+            addBadgeToSquare(moves[i].to, classification.label);
+            
+            const moveDiv = document.createElement('div');
+            moveDiv.className = 'move-eval';
+            const turnNum = Math.floor(i / 2) + 1;
+            const movePrefix = whiteToMove ? `${turnNum}. ` : `${turnNum}... `;
+            
+            moveDiv.innerHTML = `
+                <span class="move-text">${movePrefix}${moves[i].san}</span> 
+                <div class="badge-container">
+                    <span class="class-badge ${classification.class}">${classification.label}</span>
+                    <span class="eval-badge">${evalValue}</span>
+                </div>
+            `;
+            resultsDiv.appendChild(moveDiv);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+        
+        progressText.innerText = "Complete!";
+        isAnalyzing = false;
+        document.getElementById('analyzeBtn').disabled = false;
+    });
+
+    function getEval(fen, depth) {
+        return new Promise((resolve) => {
+            let currentEval = "0.00";
+            const onMessage = (event) => {
+                const line = event.data;
+                if (line.includes('score cp')) {
+                    const match = line.match(/score cp (-?\d+)/);
+                    if (match) {
+                        let score = parseInt(match[1]) / 100;
+                        if (fen.includes(' b ')) score = -score;
+                        currentEval = (score > 0 ? '+' : '') + score.toFixed(2);
+                    }
+                } else if (line.includes('score mate')) {
+                    const match = line.match(/score mate (-?\d+)/);
+                    if (match) {
+                        let mate = parseInt(match[1]);
+                        if (fen.includes(' b ')) mate = -mate;
+                        currentEval = `M${mate}`;
+                    }
+                }
+                if (line.startsWith('bestmove')) {
+                    stockfishWorker.removeEventListener('message', onMessage);
+                    resolve(currentEval);
+                }
+            };
+            stockfishWorker.addEventListener('message', onMessage);
+            stockfishWorker.postMessage('position fen ' + fen);
+            stockfishWorker.postMessage('go depth ' + depth);
+        });
+    }<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -254,7 +434,15 @@
 
     loadStockfish();
 
-    // Smart classification system based on centipawn changes
+    // Mapping classifications to symbolic icons
+    const classSymbols = {
+        "Best": { text: "✓", color: "#81b64c" },
+        "Good": { text: "✓", color: "#4b643a" },
+        "Inaccuracy": { text: "?!", color: "#f0c15c" },
+        "Mistake": { text: "?", color: "#e67e22" },
+        "Blunder": { text: "??", color: "#b33925" }
+    };
+
     function getClassification(current, previous, isWhiteTurn) {
         if (current.startsWith('M') || previous.startsWith('M')) {
             return { label: "Best", class: "bg-best" };
@@ -262,10 +450,8 @@
         
         let curNum = parseFloat(current);
         let prevNum = parseFloat(previous);
-        
         if (isNaN(curNum) || isNaN(prevNum)) return { label: "Best", class: "bg-best" };
         
-        // Loss calculated from player's perspective
         let loss = isWhiteTurn ? (prevNum - curNum) : (curNum - prevNum);
         
         if (loss <= 0.15) return { label: "Best", class: "bg-best" };
@@ -273,6 +459,38 @@
         if (loss <= 0.9) return { label: "Inaccuracy", class: "bg-inaccuracy" };
         if (loss <= 1.8) return { label: "Mistake", class: "bg-mistake" };
         return { label: "Blunder", class: "bg-blunder" };
+    }
+
+    // Function to dynamically attach a visual indicator symbol to a square
+    function addBadgeToSquare(square, label) {
+        // Clear previous custom icons on this specific square if they exist
+        $('.board-b72b1 .square-' + square).find('.board-custom-badge').remove();
+        
+        const symbolData = classSymbols[label];
+        if (!symbolData) return;
+
+        const badgeHtml = `
+            <div class="board-custom-badge" style="
+                position: absolute;
+                top: -4px;
+                right: -4px;
+                background-color: ${symbolData.color};
+                color: ${label === 'Inaccuracy' ? '#000' : '#fff'};
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: sans-serif;
+                font-size: 11px;
+                font-weight: bold;
+                z-index: 10;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+                border: 1.5px solid #161512;
+            ">${symbolData.text}</div>
+        `;
+        $('.board-b72b1 .square-' + square).css('position', 'relative').append(badgeHtml);
     }
 
     document.getElementById('analyzeBtn').addEventListener('click', async () => {
@@ -291,6 +509,9 @@
 
         const moves = game.history({ verbose: true });
         if (moves.length === 0) return;
+
+        // Clear badges from all squares before staring a new game analysis run
+        $('.board-b72b1 [class*="square-"]').find('.board-custom-badge').remove();
 
         isAnalyzing = true;
         document.getElementById('analyzeBtn').disabled = true;
@@ -318,6 +539,9 @@
             
             const classification = getClassification(evalValue, lastEval, whiteToMove);
             lastEval = evalValue;
+            
+            // Render the floating layout badge on the destination target square
+            addBadgeToSquare(moves[i].to, classification.label);
             
             const moveDiv = document.createElement('div');
             moveDiv.className = 'move-eval';
