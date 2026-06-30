@@ -410,8 +410,7 @@
     let stockfishWorker = null;
     let isAnalyzing = false;
 
-    // Load example game baseline directly
-    document.getElementById('pgnInput').value = `1. e3 e5 2. Qh5 Nc6 3. Qf5 d5 4. Qh5 Nf6 5. Qe2 Bg4 6. Qb5 Bd7 7. h3 Nd4 8. Qd3 Bb5 9. c4 Bxc4 10. Qc3 Bb4!! 11. Qxb4 Nc2+ 12. Kd1 Nxb4 13. Bxc4 dxc4 14. a3 Qd3 15. Ne2 Qc2+ 16. Ke1 Nd3+ 17. Kf1 Qd1#`;
+    document.getElementById('pgnInput').value = `1. e3 e5 2. Qh5 Nc6 3. Qf5 d5 4. Qh5 Nf6 5. Qe2 Bg4 6. Qb5 Bd7 7. h3 Nd4 8. Qd3 Bb5 9. c4 Bxc4 10. Qc3 Bb4 11. Qxb4 Nc2+ 12. Kd1 Nxb4 13. Bxc4 dxc4 14. a3 Qd3 15. Ne2 Qc2+ 16. Ke1 Nd3+ 17. Kf1 Qd1#`;
 
     let board = Chessboard('board', {
         pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
@@ -451,7 +450,6 @@
     window.addEventListener('resize', resizeCanvas);
     setTimeout(resizeCanvas, 500);
 
-    // Keyboard Arrow Controls
     window.addEventListener('keydown', function(e) {
         if (isAnalyzing) return;
         if (document.activeElement && document.activeElement.id === 'pgnInput') return;
@@ -467,22 +465,20 @@
         }
     });
 
-    // CRITICAL: Stable directly-bound Worker loader to prevent thread hangs
+    // COMPATIBILITY BUSTING FIX: Load Engine script via a sandboxed string blob to completely satisfy CORS/File URL Policies
     async function loadStockfish() {
         try {
             document.getElementById('results').innerHTML = "<div style='padding:15px; text-align:center;'>Setting up engine...</div>";
-            stockfishWorker = new Worker('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
+            const response = await fetch('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
+            const code = await response.text();
+            
+            // Bundle engine source safely inside an executable string blob
+            const blob = new Blob([code], { type: 'application/javascript' });
+            stockfishWorker = new Worker(URL.createObjectURL(blob));
+            
             document.getElementById('results').innerHTML = "<div style='padding:15px; text-align:center; color:#81b64c;'>Ready for analysis.</div>";
         } catch (error) {
-            try {
-                const response = await fetch('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
-                const code = await response.text();
-                const blob = new Blob([code], { type: 'application/javascript' });
-                stockfishWorker = new Worker(URL.createObjectURL(blob));
-                document.getElementById('results').innerHTML = "<div style='padding:15px; text-align:center; color:#81b64c;'>Ready for analysis (Fallback).</div>";
-            } catch (innerError) {
-                document.getElementById('results').innerHTML = "<div style='padding:15px; text-align:center; color:#ff5555;'>Engine setup failed. Check your network context.</div>";
-            }
+            document.getElementById('results').innerHTML = "<div style='padding:15px; text-align:center; color:#ff5555;'>Engine setup failed. Make sure you are online so the browser can download Stockfish.</div>";
         }
     }
     loadStockfish();
@@ -804,7 +800,6 @@
         jumpToMove(moves.length - 1);
     });
 
-    // Fresh event mapping per invocation loop ensures zero event pipeline drops
     function getBestMoveAndEval(fen, depth) {
         return new Promise((resolve) => {
             let currentEval = "0.00";
