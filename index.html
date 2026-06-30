@@ -22,6 +22,7 @@
             --black-square: #739552;
             
             /* Move Classification Colors */
+            --cls-brilliant: #1baca6;
             --cls-best: #81b64c;
             --cls-good: #4b643a;
             --cls-inaccuracy: #f0c15c;
@@ -242,7 +243,7 @@
         }
         
         .move-eval:hover { background-color: rgba(255, 255, 255, 0.05) !important; }
-        .move-eval.active-move { background-color: rgba(129, 182, 76, 0.2) !important; }
+        .move-eval.active-move { background-color: rgba(27, 172, 166, 0.2) !important; }
 
         .move-text { font-weight: 600; color: #fff; }
 
@@ -271,13 +272,13 @@
             text-align: center;
         }
         
+        .bg-brilliant { background-color: var(--cls-brilliant); }
         .bg-best { background-color: var(--cls-best); }
         .bg-good { background-color: var(--cls-good); }
         .bg-inaccuracy { background-color: var(--cls-inaccuracy); color: #000; }
         .bg-mistake { background-color: var(--cls-mistake); }
         .bg-blunder { background-color: var(--cls-blunder); }
 
-        /* Navigation Controls Design */
         .nav-controls {
             display: flex;
             justify-content: center;
@@ -365,6 +366,11 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr>
+                        <td><span class="dot" style="background: var(--cls-brilliant);"></span>Brilliant</td>
+                        <td id="w-brilliant" style="text-align: center; font-weight: bold;">0</td>
+                        <td id="b-brilliant" style="text-align: center; font-weight: bold;">0</td>
+                    </tr>
                     <tr>
                         <td><span class="dot" style="background: var(--cls-best);"></span>Best</td>
                         <td id="w-best" style="text-align: center; font-weight: bold;">0</td>
@@ -456,6 +462,23 @@
     window.addEventListener('resize', resizeCanvas);
     setTimeout(resizeCanvas, 500);
 
+    // KEYBOARD NAVIGATION SYSTEM (Left & Right Arrow Keys)
+    window.addEventListener('keydown', function(e) {
+        if (isAnalyzing) return;
+        // Ignore key actions if typing inside PGN textbox
+        if (document.activeElement && document.activeElement.id === 'pgnInput') return;
+
+        if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            jumpToMove(currentMoveIndex - 1);
+            if (isPlaying) togglePlay();
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            jumpToMove(currentMoveIndex + 1);
+            if (isPlaying) togglePlay();
+        }
+    });
+
     async function loadStockfish() {
         try {
             document.getElementById('results').innerHTML = "<div style='padding:15px; text-align:center;'>Setting up engine...</div>";
@@ -471,6 +494,7 @@
     loadStockfish();
 
     const classSymbols = {
+        "Brilliant": { text: "!!", color: "#1baca6" },
         "Best": { text: "✓", color: "#81b64c" },
         "Good": { text: "✓", color: "#4b643a" },
         "Inaccuracy": { text: "?!", color: "#f0c15c" },
@@ -486,12 +510,41 @@
         return parseFloat(val);
     }
 
-    function getClassification(current, previous, isWhiteTurn) {
+    const pieceValues = { p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 };
+
+    // SACCED PIECE CHECKER (Validates if a move is a real tactical sacrifice)
+    function checkIsPieceSacrifice(moveObj, initialFen) {
+        let tempChess = new Chess(initialFen);
+        let activeColor = tempChess.turn();
+        
+        let attackedSquare = moveObj.to;
+        let movingPiece = moveObj.piece;
+
+        // Check if destination square is guarded/under attack by enemy pieces
+        let isSquareGuardedByEnemy = tempChess.attacked(activeColor === 'w' ? 'b' : 'w', attackedSquare);
+        if (isSquareGuardedByEnemy) {
+            // Case 1: Hanging item or capturing something with lower value on an attacked square
+            if (!moveObj.captured) return true;
+            if (pieceValues[moveObj.captured] < pieceValues[movingPiece]) return true;
+        }
+        return false;
+    }
+
+    function getClassification(current, previous, isWhiteTurn, moveObj, initialFen) {
         let curNum = parseEvalScore(current);
         let prevNum = parseEvalScore(previous);
         if (isNaN(curNum) || isNaN(prevNum)) return { label: "Best", class: "bg-best", penalty: 0 };
         
         let loss = isWhiteTurn ? (prevNum - curNum) : (curNum - prevNum);
+        
+        // BRILLIANT MOVE VALIDATION ALGORITHM
+        let currentPosIsWinning = isWhiteTurn ? (curNum >= -0.5) : (curNum <= 0.5);
+        if (currentPosIsWinning && checkIsPieceSacrifice(moveObj, initialFen)) {
+            if (loss <= 0.40 || (typeof current === 'string' && current.startsWith('M'))) {
+                return { label: "Brilliant", class: "bg-brilliant", penalty: 0 };
+            }
+        }
+
         if (loss <= 0.15) return { label: "Best", class: "bg-best", penalty: Math.max(0, loss) };
         if (loss <= 0.45) return { label: "Good", class: "bg-good", penalty: loss };
         if (loss <= 0.9) return { label: "Inaccuracy", class: "bg-inaccuracy", penalty: loss };
@@ -500,7 +553,6 @@
     }
 
     function addBadgeToSquare(square, label) {
-        // Completely clear existing badges on the entire board first so they don't stick or duplicate
         $('.board-custom-badge').remove();
         
         const symbolData = classSymbols[label];
@@ -603,7 +655,7 @@
             addBadgeToSquare(currentMoveData.moveObj.to, currentMoveData.classification.label);
 
             if (currentMoveData.bestMove.from && currentMoveData.bestMove.to) {
-                let arrowColor = (currentMoveData.classification.label === 'Best' || currentMoveData.classification.label === 'Good') 
+                let arrowColor = (currentMoveData.classification.label === 'Best' || currentMoveData.classification.label === 'Brilliant' || currentMoveData.classification.label === 'Good') 
                     ? 'rgba(129, 182, 76, 0.72)' 
                     : 'rgba(230, 126, 34, 0.72)';
                 drawArrow(currentMoveData.bestMove.from, currentMoveData.bestMove.to, arrowColor);
@@ -670,8 +722,8 @@
         progressWrapper.style.display = 'block';
         resultsDiv.innerHTML = "";
 
-        let whiteCounters = { Best: 0, Good: 0, Inaccuracy: 0, Mistake: 0, Blunder: 0, totalLoss: 0, count: 0 };
-        let blackCounters = { Best: 0, Good: 0, Inaccuracy: 0, Mistake: 0, Blunder: 0, totalLoss: 0, count: 0 };
+        let whiteCounters = { Brilliant: 0, Best: 0, Good: 0, Inaccuracy: 0, Mistake: 0, Blunder: 0, totalLoss: 0, count: 0 };
+        let blackCounters = { Brilliant: 0, Best: 0, Good: 0, Inaccuracy: 0, Mistake: 0, Blunder: 0, totalLoss: 0, count: 0 };
         
         let testGame = new Chess();
         let lastEval = "0.00";
@@ -681,13 +733,14 @@
             progressBar.style.width = percent + '%';
             progressText.innerText = `Reviewing (${percent}%)`;
             
-            const bestMoveData = await getBestMoveAndEval(testGame.fen(), 10);
+            let currentSnapshotFen = testGame.fen();
+            const bestMoveData = await getBestMoveAndEval(currentSnapshotFen, 10);
             
             testGame.move(moves[i]);
             board.position(testGame.fen());
             
             const whiteToMove = i % 2 === 0;
-            const classification = getClassification(bestMoveData.eval, lastEval, whiteToMove);
+            const classification = getClassification(bestMoveData.eval, lastEval, whiteToMove, moves[i], currentSnapshotFen);
             lastEval = bestMoveData.eval;
             
             let tracker = whiteToMove ? whiteCounters : blackCounters;
@@ -701,12 +754,11 @@
                 bestMove: bestMoveData
             });
 
-            // Keep the live analysis board display clean without messy overlapping components
             clearBadgesAndArrows();
             addBadgeToSquare(moves[i].to, classification.label);
             
             if (bestMoveData.from && bestMoveData.to) {
-                let arrowColor = (classification.label === 'Best' || classification.label === 'Good') 
+                let arrowColor = (classification.label === 'Best' || classification.label === 'Brilliant' || classification.label === 'Good') 
                     ? 'rgba(129, 182, 76, 0.72)' 
                     : 'rgba(230, 126, 34, 0.72)';
                 drawArrow(bestMoveData.from, bestMoveData.to, arrowColor);
@@ -748,6 +800,8 @@
         document.getElementById('whiteEstRating').innerText = wRating;
         document.getElementById('blackEstRating').innerText = bRating;
 
+        document.getElementById('w-brilliant').innerText = whiteCounters.Brilliant;
+        document.getElementById('b-brilliant').innerText = blackCounters.Brilliant;
         document.getElementById('w-best').innerText = whiteCounters.Best;
         document.getElementById('b-best').innerText = blackCounters.Best;
         document.getElementById('w-good').innerText = whiteCounters.Good;
@@ -765,7 +819,6 @@
         isAnalyzing = false;
         document.getElementById('analyzeBtn').disabled = false;
         
-        // Render step highlight context securely once analytics are final
         jumpToMove(moves.length - 1);
     });
 
