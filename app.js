@@ -1,5 +1,3 @@
-// ===== Chess Game Analyzer — real Stockfish + accuracy math =====
-
 const game = new Chess();
 let analyzedMoves = [];
 let currentMoveIndex = -1;
@@ -7,6 +5,7 @@ let isPlaying = false;
 let playInterval = null;
 let stockfishWorker = null;
 let isAnalyzing = false;
+let boardFlipped = false;
 
 let board = Chessboard('board', {
   pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
@@ -67,16 +66,9 @@ function moveAccuracyFromWinPercentDrop(winPercentBefore, winPercentAfter, isWhi
 
 function classifyMove(cpLossForMover, isSacrifice, isOnlyGoodMove, isBookMove, isTheTopEngineMove) {
   if (isBookMove) return { label: 'Book', cls: 'bg-book' };
-
-  if (isSacrifice && cpLossForMover <= 30) {
-    return { label: 'Brilliant', cls: 'bg-brilliant' };
-  }
-  if (isOnlyGoodMove && cpLossForMover <= 30) {
-    return { label: 'Great', cls: 'bg-great' };
-  }
-  if (isTheTopEngineMove) {
-    return { label: 'Best', cls: 'bg-best' };
-  }
+  if (isSacrifice && cpLossForMover <= 30) return { label: 'Brilliant', cls: 'bg-brilliant' };
+  if (isOnlyGoodMove && cpLossForMover <= 30) return { label: 'Great', cls: 'bg-great' };
+  if (isTheTopEngineMove) return { label: 'Best', cls: 'bg-best' };
   if (cpLossForMover < 50) return { label: 'Excellent', cls: 'bg-excellent' };
   if (cpLossForMover < 100) return { label: 'Good', cls: 'bg-good' };
   if (cpLossForMover < 300) return { label: 'Inaccuracy', cls: 'bg-inaccuracy' };
@@ -132,8 +124,8 @@ function drawArrow(fromSquare, toSquare, color) {
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   resizeCanvas();
-  const files = ['a','b','c','d','e','f','g','h'];
-  const ranks = ['8','7','6','5','4','3','2','1'];
+  const files = boardFlipped ? ['h','g','f','e','d','c','b','a'] : ['a','b','c','d','e','f','g','h'];
+  const ranks = boardFlipped ? ['1','2','3','4','5','6','7','8'] : ['8','7','6','5','4','3','2','1'];
   const sqW = canvas.width / 8, sqH = canvas.height / 8;
   const center = (sq) => ({
     x: files.indexOf(sq[0]) * sqW + sqW / 2,
@@ -200,11 +192,39 @@ function togglePlay() {
   }
 }
 
-$('#btnFirst').click(() => { if (!isAnalyzing) { jumpToMove(-1); if (isPlaying) togglePlay(); } });
-$('#btnPrev').click(() => { if (!isAnalyzing) { jumpToMove(currentMoveIndex - 1); if (isPlaying) togglePlay(); } });
-$('#btnNext').click(() => { if (!isAnalyzing) { jumpToMove(currentMoveIndex + 1); if (isPlaying) togglePlay(); } });
-$('#btnLast').click(() => { if (!isAnalyzing) { jumpToMove(analyzedMoves.length - 1); if (isPlaying) togglePlay(); } });
+$('#btnFlip').click(() => {
+  boardFlipped = !boardFlipped;
+  board.flip();
+  clearBadgesAndArrows();
+  if (currentMoveIndex >= 0 && analyzedMoves[currentMoveIndex]) {
+    const data = analyzedMoves[currentMoveIndex];
+    addBadgeToSquare(data.moveObj.to, data.classification.label);
+    if (data.bestMove.from && data.bestMove.to && data.classification.label !== 'Best' && data.classification.label !== 'Brilliant') {
+      drawArrow(data.bestMove.from, data.bestMove.to, 'rgba(230,126,34,0.72)');
+    }
+  }
+});
+
+function updateNavButtonStates() {
+  $('#btnFirst').prop('disabled', currentMoveIndex <= -1);
+  $('#btnPrev').prop('disabled', currentMoveIndex <= -1);
+  $('#btnNext').prop('disabled', currentMoveIndex >= analyzedMoves.length - 1);
+  $('#btnLast').prop('disabled', currentMoveIndex >= analyzedMoves.length - 1);
+}
+
+$('#btnFirst').click(() => { if (!isAnalyzing) { jumpToMove(-1); updateNavButtonStates(); if (isPlaying) togglePlay(); } });
+$('#btnPrev').click(() => { if (!isAnalyzing) { jumpToMove(currentMoveIndex - 1); updateNavButtonStates(); if (isPlaying) togglePlay(); } });
+$('#btnNext').click(() => { if (!isAnalyzing) { jumpToMove(currentMoveIndex + 1); updateNavButtonStates(); if (isPlaying) togglePlay(); } });
+$('#btnLast').click(() => { if (!isAnalyzing) { jumpToMove(analyzedMoves.length - 1); updateNavButtonStates(); if (isPlaying) togglePlay(); } });
 $('#btnPlay').click(() => { if (!isAnalyzing && analyzedMoves.length > 0) togglePlay(); });
+
+document.addEventListener('keydown', (e) => {
+  if (isAnalyzing || analyzedMoves.length === 0) return;
+  if (e.key === 'ArrowLeft') { e.preventDefault(); jumpToMove(currentMoveIndex - 1); updateNavButtonStates(); if (isPlaying) togglePlay(); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); jumpToMove(currentMoveIndex + 1); updateNavButtonStates(); if (isPlaying) togglePlay(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); jumpToMove(-1); updateNavButtonStates(); if (isPlaying) togglePlay(); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); jumpToMove(analyzedMoves.length - 1); updateNavButtonStates(); if (isPlaying) togglePlay(); }
+});
 
 function getEvalAndBestMove(fen, depth) {
   return new Promise((resolve) => {
@@ -379,9 +399,11 @@ document.getElementById('analyzeBtn').addEventListener('click', async () => {
     </tr>`).join('');
 
   document.getElementById('summaryCard').style.display = 'flex';
+  document.getElementById('summaryCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   progressWrapper.style.display = 'none';
   isAnalyzing = false;
   document.getElementById('analyzeBtn').disabled = false;
 
   jumpToMove(moves.length - 1);
+  updateNavButtonStates();
 });
