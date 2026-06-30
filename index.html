@@ -1,93 +1,297 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chess Game Analyzer</title>
-<link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Analyzer</title>
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-dark: #302e2b;
+            --bg-panel: #262421;
+            --text-light: #fff;
+            --chess-green: #81b64c;
+            --chess-green-hover: #96c85e;
+            --white-square: #ebecd0;
+            --black-square: #739552;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            display: flex;
+            gap: 30px;
+            max-width: 1000px;
+            width: 100%;
+            flex-wrap: wrap;
+        }
+
+        .board-column {
+            flex: 1;
+            min-width: 300px;
+            max-width: 500px;
+        }
+
+        .panel-column {
+            flex: 1;
+            background-color: var(--bg-panel);
+            padding: 20px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            min-width: 300px;
+        }
+
+        h2 { margin-top: 0; font-size: 24px; }
+
+        textarea {
+            width: 100%;
+            height: 120px;
+            background: #1e1e1e;
+            color: #ddd;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            resize: vertical;
+            box-sizing: border-box;
+        }
+
+        button {
+            background-color: var(--chess-green);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover { background-color: var(--chess-green-hover); }
+        button:disabled { background-color: #555; cursor: not-allowed; }
+
+        .progress-wrapper {
+            background: #1e1e1e;
+            border-radius: 4px;
+            height: 24px;
+            position: relative;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            background-color: var(--chess-green);
+            height: 100%;
+            width: 0%;
+            transition: width 0.2s;
+        }
+
+        .progress-text {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+
+        #results {
+            margin-top: 10px;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 300px;
+            overflow-y: auto;
+            color: #ccc;
+        }
+        
+        .move-eval {
+            padding: 6px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Override chessboard colors to match Chess.com */
+        .white-1e1d7 { background-color: var(--white-square); color: var(--black-square); }
+        .black-3c85d { background-color: var(--black-square); color: var(--white-square); }
+    </style>
 </head>
 <body>
 
-<header class="topbar">
-  <div class="brand">♛ Chess Game Analyzer</div>
-  <div class="limit-info" id="limit-info">1 free review per day</div>
-</header>
-
-<main class="container">
-
-  <section class="input-panel">
-    <h1>Get a professional review of your chess game</h1>
-    <p class="subtext">Paste a PGN below. The engine (Stockfish, running locally in your browser) will analyze every move.</p>
-
-    <textarea id="pgn-input" placeholder="Paste PGN here... e.g. 1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 ..."></textarea>
-
-    <div class="row">
-      <button id="analyze-btn" class="primary-btn">Analyze game</button>
-      <span id="status-text" class="status-text"></span>
+<div class="container">
+    <div class="board-column">
+        <div id="board"></div>
     </div>
-  </section>
+    
+    <div class="panel-column">
+        <h2>Game Review</h2>
+        <textarea id="pgnInput" placeholder="Paste your PGN here..."></textarea>
+        
+        <button id="analyzeBtn">Analyze Game</button>
+        
+        <div class="progress-wrapper" id="progressWrapper">
+            <div class="progress-bar" id="progressBar"></div>
+            <div class="progress-text" id="progressText">0%</div>
+        </div>
 
-  <section class="board-section" id="board-section" style="display:none">
-    <div class="board-col">
-      <div id="board"></div>
-      <div class="controls">
-        <button class="ctrl-btn" id="btn-first">⏮</button>
-        <button class="ctrl-btn" id="btn-prev">◀</button>
-        <button class="ctrl-btn" id="btn-play">▶</button>
-        <button class="ctrl-btn" id="btn-next">▶▶</button>
-        <button class="ctrl-btn" id="btn-last">⏭</button>
-        <span id="move-counter" class="move-counter">Start</span>
-      </div>
-      <div class="move-list" id="move-list"></div>
+        <div id="results">Initializing setup...</div>
     </div>
+</div>
 
-    <div class="analysis-col">
-      <div class="panel">
-        <h3>Position evaluation</h3>
-        <div class="eval-row">
-          <div class="eval-bar-track"><div class="eval-bar-fill" id="eval-fill"></div></div>
-          <span class="eval-score" id="eval-score">0.0</span>
-        </div>
-        <div class="class-row" id="class-row" style="display:none">
-          <span class="class-badge" id="class-badge"></span>
-        </div>
-        <div class="best-move-line" id="best-move-line"></div>
-      </div>
+<script>
+    // 1. Initialize Board Immediately on page load
+    let board = Chessboard('board', {
+        pieceTheme: 'https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/img/chesspieces/wikipedia/{piece}.png',
+        position: 'start'
+    });
 
-      <div class="panel">
-        <h3>Game statistics</h3>
-        <div class="acc-grid">
-          <div class="acc-item">
-            <span class="acc-label white">White accuracy</span>
-            <span class="acc-value" id="white-acc">—</span>
-          </div>
-          <div class="acc-item">
-            <span class="acc-label black">Black accuracy</span>
-            <span class="acc-value" id="black-acc">—</span>
-          </div>
-        </div>
-        <div class="stat-grid">
-          <div class="stat-box"><span class="stat-num" id="stat-blunders">0</span><span class="stat-label">Blunders</span></div>
-          <div class="stat-box"><span class="stat-num" id="stat-mistakes">0</span><span class="stat-label">Mistakes</span></div>
-          <div class="stat-box"><span class="stat-num" id="stat-inaccuracies">0</span><span class="stat-label">Inaccuracies</span></div>
-          <div class="stat-box"><span class="stat-num" id="stat-best">0</span><span class="stat-label">Best moves</span></div>
-        </div>
-      </div>
+    const game = new Chess();
+    let stockfishWorker = null;
+    let isAnalyzing = false;
 
-      <div class="panel">
-        <h3>Summary</h3>
-        <div id="summary-text" class="summary-text">Analyze a game to see the summary.</div>
-      </div>
-    </div>
-  </section>
+    // 2. Load Stockfish Engine (Bypassing strict browser CORS rules)
+    async function loadStockfish() {
+        try {
+            document.getElementById('results').innerHTML = "Downloading engine...";
+            const response = await fetch('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
+            const code = await response.text();
+            
+            // Create a local blob to allow the worker to run cross-origin
+            const blob = new Blob([code], { type: 'application/javascript' });
+            stockfishWorker = new Worker(URL.createObjectURL(blob));
+            
+            document.getElementById('results').innerHTML = "Engine loaded. Ready to analyze.";
+            return true;
+        } catch (error) {
+            console.error("Stockfish load error:", error);
+            document.getElementById('results').innerHTML = "<span style='color:#ff5555;'>Failed to load engine.</span>";
+            return false;
+        }
+    }
 
-</main>
+    // Call engine loader on startup
+    loadStockfish();
 
-<footer class="footer">
-  Built with Stockfish (open source) · chess.js · No data leaves your browser
-</footer>
+    // 3. Handle Analyze Button Click
+    document.getElementById('analyzeBtn').addEventListener('click', async () => {
+        const pgn = document.getElementById('pgnInput').value.trim();
+        const resultsDiv = document.getElementById('results');
+        
+        if (!pgn) { alert("Please paste a PGN first!"); return; }
+        if (!stockfishWorker) { alert("Engine is still loading. Please wait."); return; }
+        if (isAnalyzing) return;
+        
+        game.reset();
+        if (!game.load_pgn(pgn)) {
+            resultsDiv.innerHTML = "<span style='color:#ff5555;'>Invalid PGN. Please check your text.</span>";
+            return;
+        }
 
-<script src="https://cdn.jsdelivr.net/npm/chess.js@0.13.4/chess.js"></script>
-<script src="app.js"></script>
+        const moves = game.history({ verbose: true });
+        if (moves.length === 0) return;
+
+        isAnalyzing = true;
+        document.getElementById('analyzeBtn').disabled = true;
+        
+        const progressWrapper = document.getElementById('progressWrapper');
+        const progressBar = document.getElementById('progressBar');
+        const progressText = document.getElementById('progressText');
+        
+        progressWrapper.style.display = 'block';
+        resultsDiv.innerHTML = "";
+        
+        let testGame = new Chess();
+        
+        // Loop through the game move by move
+        for (let i = 0; i < moves.length; i++) {
+            // Update percentage bar
+            let percent = Math.round(((i + 1) / moves.length) * 100);
+            progressBar.style.width = percent + '%';
+            progressText.innerText = `Analyzing move ${i + 1} of ${moves.length} (${percent}%)`;
+            
+            // Move piece on the board visually
+            testGame.move(moves[i]);
+            board.position(testGame.fen());
+            
+            // Get evaluation from Stockfish (Depth 10 for fast web processing)
+            const eval = await getEval(testGame.fen(), 10);
+            
+            // Output move and eval to the log
+            const moveDiv = document.createElement('div');
+            moveDiv.className = 'move-eval';
+            const whiteToMove = i % 2 === 0;
+            const turnNum = Math.floor(i / 2) + 1;
+            const movePrefix = whiteToMove ? `${turnNum}. ` : `${turnNum}... `;
+            
+            moveDiv.innerHTML = `<span>${movePrefix}${moves[i].san}</span> <span>Eval: ${eval}</span>`;
+            resultsDiv.appendChild(moveDiv);
+            resultsDiv.scrollTop = resultsDiv.scrollHeight; // Auto-scroll down
+        }
+        
+        progressText.innerText = "Analysis Complete (100%)";
+        isAnalyzing = false;
+        document.getElementById('analyzeBtn').disabled = false;
+    });
+
+    // 4. Helper function to communicate with Stockfish
+    function getEval(fen, depth) {
+        return new Promise((resolve) => {
+            let currentEval = "0.00";
+            
+            const onMessage = (event) => {
+                const line = event.data;
+                
+                // Parse centipawn evaluation
+                if (line.includes('info depth') && line.includes('score cp')) {
+                    const match = line.match(/score cp (-?\d+)/);
+                    if (match) {
+                        let score = parseInt(match[1]) / 100;
+                        if (fen.includes(' b ')) score = -score; // Adjust for Black
+                        currentEval = (score > 0 ? '+' : '') + score.toFixed(2);
+                    }
+                } 
+                // Parse mate evaluation
+                else if (line.includes('info depth') && line.includes('score mate')) {
+                    const match = line.match(/score mate (-?\d+)/);
+                    if (match) {
+                        let mate = parseInt(match[1]);
+                        if (fen.includes(' b ')) mate = -mate; // Adjust for Black
+                        currentEval = `M${mate}`;
+                    }
+                }
+                
+                // End search when bestmove is outputted
+                if (line.startsWith('bestmove')) {
+                    stockfishWorker.removeEventListener('message', onMessage);
+                    resolve(currentEval);
+                }
+            };
+
+            stockfishWorker.addEventListener('message', onMessage);
+            stockfishWorker.postMessage('position fen ' + fen);
+            stockfishWorker.postMessage('go depth ' + depth);
+        });
+    }
+</script>
 </body>
 </html>
