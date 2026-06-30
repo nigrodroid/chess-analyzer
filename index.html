@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chess Game Analyzer</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">♛ Chess Game Analyzer</div>
+  <div class="limit-info" id="limit-info">1 free review per day</div>
+</header>
+
+<main class="container">
+
+  <section class="input-panel">
+    <h1>Get a professional review of your chess game</h1>
+    <p class="subtext">Paste a PGN below. The engine (Stockfish, running locally in your browser) will analyze every move.</p>
+
+    <textarea id="pgn-input" placeholder="Paste PGN here... e.g. 1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 ..."></textarea>
+
+    <div class="row">
+      <button id="analyze-btn" class="primary-btn">Analyze game</button>
+      <span id="status-text" class="status-text"></span>
+    </div>
+  </section>
+
+  <section class="board-section" id="board-section" style="display:none">
+    <div class="board-col">
+      <div id="board"></div>
+      <div class="controls">
+        <button class="ctrl-btn" id="btn-first">⏮</button>
+        <button class="ctrl-btn" id="btn-prev">◀</button>
+        <button class="ctrl-btn" id="btn-play">▶</button>
+        <button class="ctrl-btn" id="btn-next">▶▶</button>
+        <button class="ctrl-btn" id="btn-last">⏭</button>
+        <span id="move-counter" class="move-counter">Start</span>
+      </div>
+      <div class="move-list" id="move-list"></div>
+    </div>
+
+    <div class="analysis-col">
+      <div class="panel">
+        <h3>Position evaluation</h3>
+        <div class="eval-row">
+          <div class="eval-bar-track"><div class="eval-bar-fill" id="eval-fill"></div></div>
+          <span class="eval-score" id="eval-score">0.0</span>
+        </div>
+        <div class="class-row" id="class-row" style="display:none">
+          <span class="class-badge" id="class-badge"></span>
+        </div>
+        <div class="best-move-line" id="best-move-line"></div>
+      </div>
+
+      <div class="panel">
+        <h3>Game statistics</h3>
+        <div class="acc-grid">
+          <div class="acc-item">
+            <span class="acc-label white">White accuracy</span>
+            <span class="acc-value" id="white-acc">—</span>
+          </div>
+          <div class="acc-item">
+            <span class="acc-label black">Black accuracy</span>
+            <span class="acc-value" id="black-acc">—</span>
+          </div>
+        </div>
+        <div class="stat-grid">
+          <div class="stat-box"><span class="stat-num" id="stat-blunders">0</span><span class="stat-label">Blunders</span></div>
+          <div class="stat-box"><span class="stat-num" id="stat-mistakes">0</span><span class="stat-label">Mistakes</span></div>
+          <div class="stat-box"><span class="stat-num" id="stat-inaccuracies">0</span><span class="stat-label">Inaccuracies</span></div>
+          <div class="stat-box"><span class="stat-num" id="stat-best">0</span><span class="stat-label">Best moves</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Summary</h3>
+        <div id="summary-text" class="summary-text">Analyze a game to see the summary.</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  Built with Stockfish (open source) · chess.js · No data leaves your browser
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.13.4/chess.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
