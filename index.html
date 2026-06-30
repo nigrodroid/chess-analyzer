@@ -6,102 +6,137 @@
     <title>Chess Analyzer</title>
     
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     
     <style>
         :root {
-            --bg-dark: #302e2b;
+            --bg-dark: #161512;
             --bg-panel: #262421;
-            --text-light: #fff;
+            --text-light: #ffffff;
+            --text-muted: #bababa;
             --chess-green: #81b64c;
-            --chess-green-hover: #96c85e;
+            --chess-green-hover: #95c75d;
             --white-square: #ebecd0;
             --black-square: #739552;
         }
 
         body {
             background-color: var(--bg-dark);
+            background-image: radial-gradient(circle at top right, #2c2a26, #161512);
             color: var(--text-light);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0;
             padding: 20px;
             display: flex;
+            align-items: center;
             justify-content: center;
+            min-height: 100vh;
+            box-sizing: border-box;
         }
 
         .container {
             display: flex;
-            gap: 30px;
-            max-width: 1000px;
+            gap: 40px;
+            max-width: 1100px;
             width: 100%;
             flex-wrap: wrap;
+            justify-content: center;
         }
 
         .board-column {
             flex: 1;
-            min-width: 300px;
-            max-width: 500px;
+            min-width: 320px;
+            max-width: 480px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+            border-radius: 6px;
+            overflow: hidden;
         }
 
         .panel-column {
             flex: 1;
             background-color: var(--bg-panel);
-            padding: 20px;
-            border-radius: 8px;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            border: 1px solid #312f2c;
             display: flex;
             flex-direction: column;
-            gap: 15px;
-            min-width: 300px;
+            gap: 20px;
+            min-width: 320px;
+            max-width: 480px;
+            box-sizing: border-box;
         }
 
-        h2 { margin-top: 0; font-size: 24px; }
+        h2 { 
+            margin: 0; 
+            font-size: 22px; 
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
 
         textarea {
             width: 100%;
-            height: 120px;
-            background: #1e1e1e;
-            color: #ddd;
-            border: 1px solid #444;
-            border-radius: 4px;
-            padding: 10px;
+            height: 100px;
+            background: #1a1917;
+            color: #eee;
+            border: 1px solid #403e3a;
+            border-radius: 8px;
+            padding: 12px;
             font-family: monospace;
-            resize: vertical;
+            resize: none;
             box-sizing: border-box;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+            font-size: 13px;
+        }
+        
+        textarea:focus {
+            outline: 1px solid var(--chess-green);
         }
 
         button {
             background-color: var(--chess-green);
             color: white;
             border: none;
-            padding: 12px 20px;
+            padding: 14px 20px;
             font-size: 16px;
             font-weight: bold;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(129, 182, 76, 0.2);
         }
 
-        button:hover { background-color: var(--chess-green-hover); }
-        button:disabled { background-color: #555; cursor: not-allowed; }
+        button:hover:not(:disabled) { 
+            background-color: var(--chess-green-hover); 
+            transform: translateY(-1px);
+            box-shadow: 0 6px 15px rgba(129, 182, 76, 0.3);
+        }
+        
+        button:disabled { 
+            opacity: 0.6; 
+            cursor: not-allowed; 
+        }
 
         .progress-wrapper {
-            background: #1e1e1e;
-            border-radius: 4px;
-            height: 24px;
+            background: #1a1917;
+            border: 1px solid #31302d;
+            border-radius: 6px;
+            height: 28px;
             position: relative;
             overflow: hidden;
             display: none;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
         }
 
         .progress-bar {
-            background-color: var(--chess-green);
+            background: linear-gradient(90deg, #81b64c, #95c75d);
             height: 100%;
             width: 0%;
             transition: width 0.2s;
+            box-shadow: 0 0 8px rgba(129, 182, 76, 0.5);
+            border-radius: 4px;
         }
 
         .progress-text {
@@ -111,29 +146,51 @@
             align-items: center;
             justify-content: center;
             font-size: 12px;
-            font-weight: bold;
+            font-weight: 700;
             text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
         }
 
         #results {
-            margin-top: 10px;
             font-size: 14px;
-            line-height: 1.5;
-            max-height: 300px;
+            max-height: 240px;
             overflow-y: auto;
-            color: #ccc;
+            color: var(--text-muted);
+            background: #1a1917;
+            border-radius: 8px;
+            padding: 5px;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+            border: 1px solid #21201d;
         }
         
         .move-eval {
-            padding: 6px;
-            border-bottom: 1px solid #444;
+            padding: 10px 14px;
             display: flex;
             justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #252422;
+        }
+        
+        .move-eval:last-child { border-bottom: none; }
+        .move-eval:nth-child(even) { background-color: rgba(255, 255, 255, 0.015); }
+
+        .move-text {
+            font-weight: 600;
+            color: #fff;
         }
 
-        /* Override chessboard colors to match Chess.com */
-        .white-1e1d7 { background-color: var(--white-square); color: var(--black-square); }
-        .black-3c85d { background-color: var(--black-square); color: var(--white-square); }
+        .eval-badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 13px;
+            background: #262421;
+            border: 1px solid #3d3a35;
+            color: #fff;
+        }
+
+        /* Chess.com Colors */
+        .white-1e1d7 { background-color: var(--white-square); }
+        .black-3c85d { background-color: var(--black-square); }
     </style>
 </head>
 <body>
@@ -146,7 +203,6 @@
     <div class="panel-column">
         <h2>Game Review</h2>
         <textarea id="pgnInput" placeholder="Paste your PGN here..."></textarea>
-        
         <button id="analyzeBtn">Analyze Game</button>
         
         <div class="progress-wrapper" id="progressWrapper">
@@ -154,12 +210,12 @@
             <div class="progress-text" id="progressText">0%</div>
         </div>
 
-        <div id="results">Initializing setup...</div>
+        <div id="results">Loading engine setup...</div>
     </div>
 </div>
 
 <script>
-    // 1. Initialize Board Immediately on page load
+    // Initialize Board
     let board = Chessboard('board', {
         pieceTheme: 'https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/img/chesspieces/wikipedia/{piece}.png',
         position: 'start'
@@ -169,41 +225,34 @@
     let stockfishWorker = null;
     let isAnalyzing = false;
 
-    // 2. Load Stockfish Engine (Bypassing strict browser CORS rules)
+    // Load Stockfish Engine via Blob to avoid security blocks
     async function loadStockfish() {
         try {
-            document.getElementById('results').innerHTML = "Downloading engine...";
+            document.getElementById('results').innerHTML = "<div style='padding:15px; text-align:center;'>Setting up engine...</div>";
             const response = await fetch('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js');
             const code = await response.text();
-            
-            // Create a local blob to allow the worker to run cross-origin
             const blob = new Blob([code], { type: 'application/javascript' });
             stockfishWorker = new Worker(URL.createObjectURL(blob));
-            
-            document.getElementById('results').innerHTML = "Engine loaded. Ready to analyze.";
-            return true;
+            document.getElementById('results').innerHTML = "<div style='padding:15px; text-align:center; color:#81b64c;'>Ready for analysis.</div>";
         } catch (error) {
-            console.error("Stockfish load error:", error);
-            document.getElementById('results').innerHTML = "<span style='color:#ff5555;'>Failed to load engine.</span>";
-            return false;
+            document.getElementById('results').innerHTML = "<div style='padding:15px; text-align:center; color:#ff5555;'>Engine error.</div>";
         }
     }
 
-    // Call engine loader on startup
     loadStockfish();
 
-    // 3. Handle Analyze Button Click
+    // Analysis Logic
     document.getElementById('analyzeBtn').addEventListener('click', async () => {
         const pgn = document.getElementById('pgnInput').value.trim();
         const resultsDiv = document.getElementById('results');
         
-        if (!pgn) { alert("Please paste a PGN first!"); return; }
-        if (!stockfishWorker) { alert("Engine is still loading. Please wait."); return; }
+        if (!pgn) { alert("Paste a PGN first!"); return; }
+        if (!stockfishWorker) { alert("Engine is loading..."); return; }
         if (isAnalyzing) return;
         
         game.reset();
         if (!game.load_pgn(pgn)) {
-            resultsDiv.innerHTML = "<span style='color:#ff5555;'>Invalid PGN. Please check your text.</span>";
+            resultsDiv.innerHTML = "<div style='padding:15px; color:#ff5555;'>Invalid PGN format.</div>";
             return;
         }
 
@@ -222,71 +271,57 @@
         
         let testGame = new Chess();
         
-        // Loop through the game move by move
         for (let i = 0; i < moves.length; i++) {
-            // Update percentage bar
             let percent = Math.round(((i + 1) / moves.length) * 100);
             progressBar.style.width = percent + '%';
-            progressText.innerText = `Analyzing move ${i + 1} of ${moves.length} (${percent}%)`;
+            progressText.innerText = `Analyzing (${percent}%)`;
             
-            // Move piece on the board visually
             testGame.move(moves[i]);
             board.position(testGame.fen());
             
-            // Get evaluation from Stockfish (Depth 10 for fast web processing)
-            const eval = await getEval(testGame.fen(), 10);
+            const evalValue = await getEval(testGame.fen(), 10);
             
-            // Output move and eval to the log
             const moveDiv = document.createElement('div');
             moveDiv.className = 'move-eval';
             const whiteToMove = i % 2 === 0;
             const turnNum = Math.floor(i / 2) + 1;
             const movePrefix = whiteToMove ? `${turnNum}. ` : `${turnNum}... `;
             
-            moveDiv.innerHTML = `<span>${movePrefix}${moves[i].san}</span> <span>Eval: ${eval}</span>`;
+            moveDiv.innerHTML = `<span class="move-text">${movePrefix}${moves[i].san}</span> <span class="eval-badge">${evalValue}</span>`;
             resultsDiv.appendChild(moveDiv);
-            resultsDiv.scrollTop = resultsDiv.scrollHeight; // Auto-scroll down
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
         }
         
-        progressText.innerText = "Analysis Complete (100%)";
+        progressText.innerText = "Complete!";
         isAnalyzing = false;
         document.getElementById('analyzeBtn').disabled = false;
     });
 
-    // 4. Helper function to communicate with Stockfish
     function getEval(fen, depth) {
         return new Promise((resolve) => {
             let currentEval = "0.00";
-            
             const onMessage = (event) => {
                 const line = event.data;
-                
-                // Parse centipawn evaluation
-                if (line.includes('info depth') && line.includes('score cp')) {
+                if (line.includes('score cp')) {
                     const match = line.match(/score cp (-?\d+)/);
                     if (match) {
                         let score = parseInt(match[1]) / 100;
-                        if (fen.includes(' b ')) score = -score; // Adjust for Black
+                        if (fen.includes(' b ')) score = -score;
                         currentEval = (score > 0 ? '+' : '') + score.toFixed(2);
                     }
-                } 
-                // Parse mate evaluation
-                else if (line.includes('info depth') && line.includes('score mate')) {
+                } else if (line.includes('score mate')) {
                     const match = line.match(/score mate (-?\d+)/);
                     if (match) {
                         let mate = parseInt(match[1]);
-                        if (fen.includes(' b ')) mate = -mate; // Adjust for Black
+                        if (fen.includes(' b ')) mate = -mate;
                         currentEval = `M${mate}`;
                     }
                 }
-                
-                // End search when bestmove is outputted
                 if (line.startsWith('bestmove')) {
                     stockfishWorker.removeEventListener('message', onMessage);
                     resolve(currentEval);
                 }
             };
-
             stockfishWorker.addEventListener('message', onMessage);
             stockfishWorker.postMessage('position fen ' + fen);
             stockfishWorker.postMessage('go depth ' + depth);
