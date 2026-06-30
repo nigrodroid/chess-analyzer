@@ -415,7 +415,6 @@
     let stockfishWorker = null;
     let isAnalyzing = false;
 
-    // Board configuration enabling responsive move logic
     let board = Chessboard('board', {
         pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
         position: 'start',
@@ -433,10 +432,8 @@
 
             if (move === null) return 'snapback';
 
-            clearCanvas();
-            $('[class*="square-"]').find('.board-custom-badge').remove();
+            clearBadgesAndArrows();
             
-            // Generate engine suggestions asynchronously if free play mode branches out
             getBestMoveAndEval(game.fen(), 10).then(data => {
                 if (data.from && data.to) {
                     drawArrow(data.from, data.to, 'rgba(240, 193, 92, 0.75)');
@@ -451,8 +448,10 @@
     function resizeCanvas() {
         const canvas = document.getElementById('arrowCanvas');
         const boardEl = document.getElementById('board');
-        canvas.width = boardEl.clientWidth;
-        canvas.height = boardEl.clientHeight;
+        if (canvas && boardEl) {
+            canvas.width = boardEl.clientWidth;
+            canvas.height = boardEl.clientHeight;
+        }
     }
     window.addEventListener('resize', resizeCanvas);
     setTimeout(resizeCanvas, 500);
@@ -501,7 +500,9 @@
     }
 
     function addBadgeToSquare(square, label) {
-        $('.square-' + square).find('.board-custom-badge').remove();
+        // Completely clear existing badges on the entire board first so they don't stick or duplicate
+        $('.board-custom-badge').remove();
+        
         const symbolData = classSymbols[label];
         if (!symbolData) return;
 
@@ -524,6 +525,7 @@
 
     function drawArrow(fromSquare, toSquare, color = 'rgba(240, 193, 92, 0.75)') {
         const canvas = document.getElementById('arrowCanvas');
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
         resizeCanvas();
 
@@ -547,7 +549,7 @@
 
         ctx.strokeStyle = color;
         ctx.fillStyle = color;
-        ctx.lineWidth = 9;
+        ctx.lineWidth = 8;
         ctx.lineCap = 'round';
 
         ctx.beginPath();
@@ -558,27 +560,27 @@
         const angle = Math.atan2(to.y - from.y, to.x - from.x);
         ctx.beginPath();
         ctx.moveTo(to.x, to.y);
-        ctx.lineTo(to.x - 20 * Math.cos(angle - Math.PI / 6), to.y - 20 * Math.sin(angle - Math.PI / 6));
-        ctx.lineTo(to.x - 20 * Math.cos(angle + Math.PI / 6), to.y - 20 * Math.sin(angle + Math.PI / 6));
+        ctx.lineTo(to.x - 18 * Math.cos(angle - Math.PI / 6), to.y - 18 * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(to.x - 18 * Math.cos(angle + Math.PI / 6), to.y - 18 * Math.sin(angle + Math.PI / 6));
         ctx.closePath();
         ctx.fill();
     }
 
-    function clearCanvas() {
+    function clearBadgesAndArrows() {
+        $('.board-custom-badge').remove();
         const canvas = document.getElementById('arrowCanvas');
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
     }
 
-    // Navigation and rendering sync function
     function jumpToMove(index) {
         if (index < -1 || index >= analyzedMoves.length) return;
         currentMoveIndex = index;
         
         game.reset();
-        $('[class*="square-"]').find('.board-custom-badge').remove();
-        clearCanvas();
-
+        clearBadgesAndArrows();
         $('.move-eval').removeClass('active-move');
 
         if (index === -1) {
@@ -589,13 +591,11 @@
             }
             board.position(game.fen());
             
-            // Highlight active side item list
             const $el = $(`.move-eval[data-idx="${index}"]`);
             $el.addClass('active-move');
             
-            // Auto-scroll list smoothly
             const container = document.getElementById('results');
-            if(container) {
+            if (container && $el.length) {
                 container.scrollTop = $el.position().top + container.scrollTop - container.clientHeight / 2;
             }
 
@@ -611,7 +611,6 @@
         }
     }
 
-    // Playback loops control logic
     function togglePlay() {
         if (isPlaying) {
             clearInterval(playInterval);
@@ -631,7 +630,6 @@
         }
     }
 
-    // UI Buttons Events mapping
     $('#btnFirst').click(() => { if(!isAnalyzing) { jumpToMove(-1); if(isPlaying) togglePlay(); } });
     $('#btnPrev').click(() => { if(!isAnalyzing) { jumpToMove(currentMoveIndex - 1); if(isPlaying) togglePlay(); } });
     $('#btnNext').click(() => { if(!isAnalyzing) { jumpToMove(currentMoveIndex + 1); if(isPlaying) togglePlay(); } });
@@ -659,8 +657,7 @@
         analyzedMoves = [];
         currentMoveIndex = -1;
 
-        $('[class*="square-"]').find('.board-custom-badge').remove();
-        clearCanvas();
+        clearBadgesAndArrows();
         document.getElementById('summaryCard').style.display = 'none';
 
         isAnalyzing = true;
@@ -698,14 +695,14 @@
             tracker.count++;
             tracker.totalLoss += Math.max(0, classification.penalty);
 
-            // Record step metadata for seamless rewind functionality
             analyzedMoves.push({
                 moveObj: moves[i],
                 classification: classification,
                 bestMove: bestMoveData
             });
 
-            clearCanvas();
+            // Keep the live analysis board display clean without messy overlapping components
+            clearBadgesAndArrows();
             addBadgeToSquare(moves[i].to, classification.label);
             
             if (bestMoveData.from && bestMoveData.to) {
@@ -729,7 +726,6 @@
                 </div>
             `;
             
-            // Allow clicking individual items inside the review history layout pane directly
             moveDiv.addEventListener('click', function() {
                 jumpToMove(parseInt(this.getAttribute('data-idx')));
             });
@@ -737,8 +733,6 @@
             resultsDiv.appendChild(moveDiv);
             resultsDiv.scrollTop = resultsDiv.scrollHeight;
         }
-
-        currentMoveIndex = moves.length - 1;
 
         let wAvgLoss = whiteCounters.count > 0 ? (whiteCounters.totalLoss / whiteCounters.count) : 0;
         let bAvgLoss = blackCounters.count > 0 ? (blackCounters.totalLoss / blackCounters.count) : 0;
@@ -771,8 +765,8 @@
         isAnalyzing = false;
         document.getElementById('analyzeBtn').disabled = false;
         
-        // Highlight last entry upon full completion automatically
-        $(`.move-eval[data-idx="${currentMoveIndex}"]`).addClass('active-move');
+        // Render step highlight context securely once analytics are final
+        jumpToMove(moves.length - 1);
     });
 
     function getBestMoveAndEval(fen, depth) {
