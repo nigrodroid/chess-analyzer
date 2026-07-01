@@ -14,42 +14,92 @@
 <body>
 <div class="container">
   <div class="board-column">
-    <div id="board"></div>
-    <canvas id="arrowCanvas"></canvas>
+    <div class="eval-bar-container">
+      <div id="evalBarFill" class="eval-bar-fill"></div>
+      <div id="evalBarLabel" class="eval-bar-label">0.0</div>
+    </div>
+    <div class="board-wrapper">
+      <div id="board"></div>
+      <svg id="arrowSvg"></svg>
+    </div>
   </div>
 
   <div class="panel-column">
-    <h2>Game Review Dashboard</h2>
-    <textarea id="pgnInput" placeholder="Paste your PGN here..."></textarea>
-    <button id="analyzeBtn">Analyze Game</button>
-
-    <div class="progress-wrapper" id="progressWrapper">
-      <div class="progress-bar" id="progressBar"></div>
-      <div class="progress-text" id="progressText">0%</div>
+    <div class="coach-bubble" id="coachBubble">
+      <div class="coach-avatar"></div>
+      <div class="coach-text-content">
+        <span class="coach-title" id="coachTitle">Ready for Analysis</span>
+        <p class="coach-text" id="coachText">Paste your PGN below to generate a detailed review of your game's accuracy and turning points.</p>
+      </div>
     </div>
 
-    <div class="summary-card" id="summaryCard">
-      <div class="stat-row">
-        <div class="stat-side">
-          <div class="stat-label">White Accuracy</div>
-          <div class="stat-val" id="whiteAccuracy">0.0%</div>
+    <div class="tabs-header">
+      <button class="tab-btn active" id="tabReviewBtn">⚡ Game Review</button>
+      <button class="tab-btn" id="tabAnalysisBtn">📋 Move List</button>
+    </div>
+
+    <div class="setup-box" id="setupBox">
+      <textarea id="pgnInput" placeholder="[Event &quot;Live Chess&quot;]... Paste your PGN data here..."></textarea>
+      <button id="analyzeBtn">Analyze Game</button>
+      <div class="progress-wrapper" id="progressWrapper">
+        <div class="progress-bar" id="progressBar"></div>
+        <div class="progress-text" id="progressText">0%</div>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tabContent">
+      <div class="summary-card" id="summaryCard">
+        <div class="accuracy-header-row">
+          <div class="accuracy-block white-acc">
+            <div class="square-badge white-square"></div>
+            <div class="acc-meta">
+              <span class="player-lbl">White Accuracy</span>
+              <span class="acc-val" id="whiteAccuracy">0.0%</span>
+            </div>
+          </div>
+          <div class="accuracy-block black-acc">
+            <div class="square-badge black-square"></div>
+            <div class="acc-meta">
+              <span class="player-lbl">Black Accuracy</span>
+              <span class="acc-val" id="blackAccuracy">0.0%</span>
+            </div>
+          </div>
         </div>
-        <div class="stat-divider"></div>
-        <div class="stat-side">
-          <div class="stat-label">Black Accuracy</div>
-          <div class="stat-val" id="blackAccuracy">0.0%</div>
+
+        <div class="rating-header-row">
+          <div class="rating-block">
+            <span class="rating-lbl">White Performance</span>
+            <span class="rating-val" id="whiteRating">1200</span>
+          </div>
+          <div class="rating-block">
+            <span class="rating-lbl">Black Performance</span>
+            <span class="rating-val" id="blackRating">1200</span>
+          </div>
+        </div>
+
+        <table class="breakdown-table">
+          <tbody id="breakdown-body">
+            </tbody>
+        </table>
+
+        <div class="phase-container">
+          <div class="phase-row">
+            <span class="phase-lbl">Opening</span>
+            <span class="phase-status check-icon">✓</span>
+          </div>
+          <div class="phase-row">
+            <span class="phase-lbl">Middle Game</span>
+            <span class="phase-status status-dash">-</span>
+          </div>
+          <div class="phase-row">
+            <span class="phase-lbl">Endgame</span>
+            <span class="phase-status status-dash">-</span>
+          </div>
         </div>
       </div>
-      <hr>
-      <table class="breakdown-table">
-        <thead>
-          <tr><td>Classification</td><td class="ctr">White</td><td class="ctr">Black</td></tr>
-        </thead>
-        <tbody id="breakdown-body"></tbody>
-      </table>
-    </div>
 
-    <div id="results">Loading engine...</div>
+      <div id="results"></div>
+    </div>
 
     <div class="nav-controls">
       <button class="nav-btn" id="btnFirst" title="First">⏮</button>
