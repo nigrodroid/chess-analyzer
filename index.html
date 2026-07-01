@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Chess Analyzer &amp; Reviewer Pro</title>
-
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-<link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chess Analyzer &amp; Reviewer Pro</title>
+  
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+
 <div class="container">
   <div class="board-column">
     <div class="eval-bar-container">
@@ -48,16 +49,17 @@
     </div>
 
     <div class="tab-content" id="tabContent">
-      <div class="summary-card" id="summaryCard">
+      
+      <div class="summary-card" id="summaryCard" style="display: none;">
         <div class="accuracy-header-row">
-          <div class="accuracy-block white-acc">
+          <div class="accuracy-block">
             <div class="square-badge white-square"></div>
             <div class="acc-meta">
               <span class="player-lbl">White Accuracy</span>
               <span class="acc-val" id="whiteAccuracy">0.0%</span>
             </div>
           </div>
-          <div class="accuracy-block black-acc">
+          <div class="accuracy-block">
             <div class="square-badge black-square"></div>
             <div class="acc-meta">
               <span class="player-lbl">Black Accuracy</span>
@@ -68,11 +70,11 @@
 
         <div class="rating-header-row">
           <div class="rating-block">
-            <span class="rating-lbl">White Performance</span>
+            <span class="rating-lbl">White Rating Performance</span>
             <span class="rating-val" id="whiteRating">1200</span>
           </div>
           <div class="rating-block">
-            <span class="rating-lbl">Black Performance</span>
+            <span class="rating-lbl">Black Rating Performance</span>
             <span class="rating-val" id="blackRating">1200</span>
           </div>
         </div>
@@ -98,7 +100,7 @@
         </div>
       </div>
 
-      <div id="results"></div>
+      <div id="results" style="display: none;"></div>
     </div>
 
     <div class="nav-controls">
@@ -107,7 +109,7 @@
       <button class="nav-btn" id="btnPlay" title="Play/Pause">▶</button>
       <button class="nav-btn" id="btnNext" title="Next">▶</button>
       <button class="nav-btn" id="btnLast" title="Last">⏭</button>
-      <button class="nav-btn" id="btnFlip" title="Flip board">⇅</button>
+      <button class="nav-btn" id="btnFlip" title="Flip Board">⇅</button>
     </div>
   </div>
 </div>
