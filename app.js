@@ -22,6 +22,7 @@ function resizeCanvas() {
   }
 }
 window.addEventListener('resize', resizeCanvas);
+window.addEventListener('load', resizeCanvas);
 setTimeout(resizeCanvas, 500);
 
 async function loadStockfish() {
@@ -157,6 +158,7 @@ function jumpToMove(index) {
 
   if (index === -1) {
     board.position('start');
+    updateNavButtonStates();
     return;
   }
   for (let i = 0; i <= index; i++) game.move(analyzedMoves[i].moveObj);
@@ -172,8 +174,9 @@ function jumpToMove(index) {
   const data = analyzedMoves[index];
   addBadgeToSquare(data.moveObj.to, data.classification.label);
   if (data.bestMove.from && data.bestMove.to && data.classification.label !== 'Best' && data.classification.label !== 'Brilliant') {
-    drawArrow(data.bestMove.from, data.bestMove.to, 'rgba(230,126,34,0.72)');
+    setTimeout(() => { drawArrow(data.bestMove.from, data.bestMove.to, 'rgba(230,126,34,0.72)'); }, 50);
   }
+  updateNavButtonStates();
 }
 
 function togglePlay() {
@@ -212,18 +215,18 @@ function updateNavButtonStates() {
   $('#btnLast').prop('disabled', currentMoveIndex >= analyzedMoves.length - 1);
 }
 
-$('#btnFirst').click(() => { if (!isAnalyzing) { jumpToMove(-1); updateNavButtonStates(); if (isPlaying) togglePlay(); } });
-$('#btnPrev').click(() => { if (!isAnalyzing) { jumpToMove(currentMoveIndex - 1); updateNavButtonStates(); if (isPlaying) togglePlay(); } });
-$('#btnNext').click(() => { if (!isAnalyzing) { jumpToMove(currentMoveIndex + 1); updateNavButtonStates(); if (isPlaying) togglePlay(); } });
-$('#btnLast').click(() => { if (!isAnalyzing) { jumpToMove(analyzedMoves.length - 1); updateNavButtonStates(); if (isPlaying) togglePlay(); } });
+$('#btnFirst').click(() => { if (!isAnalyzing) { jumpToMove(-1); if (isPlaying) togglePlay(); } });
+$('#btnPrev').click(() => { if (!isAnalyzing) { jumpToMove(currentMoveIndex - 1); if (isPlaying) togglePlay(); } });
+$('#btnNext').click(() => { if (!isAnalyzing) { jumpToMove(currentMoveIndex + 1); if (isPlaying) togglePlay(); } });
+$('#btnLast').click(() => { if (!isAnalyzing) { jumpToMove(analyzedMoves.length - 1); if (isPlaying) togglePlay(); } });
 $('#btnPlay').click(() => { if (!isAnalyzing && analyzedMoves.length > 0) togglePlay(); });
 
 document.addEventListener('keydown', (e) => {
   if (isAnalyzing || analyzedMoves.length === 0) return;
-  if (e.key === 'ArrowLeft') { e.preventDefault(); jumpToMove(currentMoveIndex - 1); updateNavButtonStates(); if (isPlaying) togglePlay(); }
-  else if (e.key === 'ArrowRight') { e.preventDefault(); jumpToMove(currentMoveIndex + 1); updateNavButtonStates(); if (isPlaying) togglePlay(); }
-  else if (e.key === 'ArrowUp') { e.preventDefault(); jumpToMove(-1); updateNavButtonStates(); if (isPlaying) togglePlay(); }
-  else if (e.key === 'ArrowDown') { e.preventDefault(); jumpToMove(analyzedMoves.length - 1); updateNavButtonStates(); if (isPlaying) togglePlay(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); jumpToMove(currentMoveIndex - 1); if (isPlaying) togglePlay(); }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); jumpToMove(currentMoveIndex + 1); if (isPlaying) togglePlay(); }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); jumpToMove(-1); if (isPlaying) togglePlay(); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); jumpToMove(analyzedMoves.length - 1); if (isPlaying) togglePlay(); }
 });
 
 function getEvalAndBestMove(fen, depth) {
@@ -318,7 +321,6 @@ document.getElementById('analyzeBtn').addEventListener('click', async () => {
       (prevEvalData.from + prevEvalData.to) === (moves[i].from + moves[i].to);
 
     testGame.move(moves[i]);
-    board.position(testGame.fen());
 
     const newEvalData = await getEvalAndBestMove(testGame.fen(), DEPTH);
     const newWinPct = evalToWinPercent(newEvalData);
@@ -348,12 +350,6 @@ document.getElementById('analyzeBtn').addEventListener('click', async () => {
       evalCp: cpAfter,
       mate: newEvalData.mate
     });
-
-    clearBadgesAndArrows();
-    addBadgeToSquare(moves[i].to, classification.label);
-    if (prevEvalData.from && prevEvalData.to && !isTopEngineMove) {
-      drawArrow(prevEvalData.from, prevEvalData.to, 'rgba(230,126,34,0.72)');
-    }
 
     const moveDiv = document.createElement('div');
     moveDiv.className = 'move-eval';
@@ -401,9 +397,9 @@ document.getElementById('analyzeBtn').addEventListener('click', async () => {
   document.getElementById('summaryCard').style.display = 'flex';
   document.getElementById('summaryCard').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   progressWrapper.style.display = 'none';
-  isAnalyzing = false;
+  
+  isAnalyzing = false; // Core Fix: unlocks UI controls
   document.getElementById('analyzeBtn').disabled = false;
 
   jumpToMove(moves.length - 1);
-  updateNavButtonStates();
 });
